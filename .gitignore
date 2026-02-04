@@ -1,0 +1,22 @@
+# Terraform (ne pas pousser .terraform/ ni les états)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+# Garder .terraform.lock.hcl en dépôt pour les versions des providers
+*.tfvars
+!terraform.tfvars.example
+
+# Fichiers sensibles (mots de passe, clés)
+.env
+*.pem
+
+# Logs
+*.log
+deploy.log
+
+# OS / IDE
+.DS_Store
+.idea/
+*.swp
+*.swo

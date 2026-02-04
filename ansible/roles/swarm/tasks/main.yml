@@ -1,0 +1,53 @@
+---
+# Rôle Swarm - Initialisation et configuration
+
+- name: S'assurer que Docker est en cours d'exécution
+  systemd:
+    name: docker
+    state: started
+  
+- name: Attendre que Docker soit accessible
+  command: docker info
+  register: docker_info
+  retries: 5
+  delay: 5
+  until: docker_info.rc == 0
+  changed_when: false
+
+- name: Vérifier si Swarm est déjà initialisé
+  shell: docker info --format '{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}'
+  register: swarm_status
+  changed_when: false
+
+- name: Afficher le statut actuel de Swarm
+  debug:
+    msg: "Statut Swarm actuel: {{ swarm_status.stdout }}"
+
+- name: Initialiser Docker Swarm
+  command: docker swarm init --advertise-addr 127.0.0.1
+  when: swarm_status.stdout != 'active'
+  register: swarm_init
+
+- name: Afficher le résultat de l'initialisation
+  debug:
+    msg: "{{ swarm_init.stdout_lines | default(['Swarm déjà actif']) }}"
+
+- name: Vérifier le statut final de Swarm
+  shell: docker info --format '{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}'
+  register: swarm_final_status
+  changed_when: false
+
+- name: Afficher le statut Swarm
+  debug:
+    msg: "Swarm est maintenant: {{ swarm_final_status.stdout }}"
+
+- name: Récupérer l'ID du noeud
+  shell: docker info --format '{{ '{{' }}.Swarm.NodeID{{ '}}' }}'
+  register: swarm_node_id
+  changed_when: false
+  when: swarm_final_status.stdout == 'active'
+
+- name: Afficher l'ID du noeud
+  debug:
+    msg: "Node ID: {{ swarm_node_id.stdout }}"
+  when: swarm_node_id.stdout is defined and swarm_node_id.stdout != ''

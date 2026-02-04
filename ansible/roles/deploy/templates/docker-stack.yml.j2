@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: public.ecr.aws/nginx/nginx:alpine
+    deploy:
+      replicas: {{ nginx_replicas }}
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - frontend
+      - backend
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/conf.d/default.conf
+
+  glpi:
+    image: ghcr.io/glpi-project/glpi:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+    environment:
+      - TIMEZONE=Europe/Paris
+    volumes:
+      - glpi_data:/var/www/html
+    networks:
+      - backend
+
+  mariadb:
+    image: public.ecr.aws/docker/library/mariadb:10.11
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    environment:
+      - MYSQL_ROOT_PASSWORD={{ mysql_root_password }}
+      - MYSQL_DATABASE={{ mysql_database }}
+      - MYSQL_USER={{ mysql_user }}
+      - MYSQL_PASSWORD={{ mysql_password }}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - backend
+
+networks:
+  frontend:
+    driver: overlay
+  backend:
+    driver: overlay
+
+volumes:
+  glpi_data:
+  mariadb_data:
+
+configs:
+  nginx_config:
+    file: ./nginx/default.conf

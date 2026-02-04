@@ -1,0 +1,112 @@
+---
+# Rôle Docker - Installation et configuration (Compatible Ubuntu 24.04+)
+
+- name: Installation des prérequis
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - python3-pip
+      - python3-setuptools
+    state: present
+
+- name: Créer le répertoire pour les keyrings
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Vérifier si la clé GPG Docker existe déjà
+  stat:
+    path: /etc/apt/keyrings/docker.gpg
+  register: docker_gpg_key
+
+- name: Télécharger la clé GPG Docker
+  shell: |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  when: not docker_gpg_key.stat.exists
+
+- name: Définir les permissions de la clé GPG
+  file:
+    path: /etc/apt/keyrings/docker.gpg
+    mode: '0644'
+
+- name: Obtenir l'architecture du système
+  command: dpkg --print-architecture
+  register: system_arch
+  changed_when: false
+
+- name: Obtenir le nom de code Ubuntu
+  shell: . /etc/os-release && echo "$VERSION_CODENAME"
+  register: ubuntu_codename
+  changed_when: false
+
+- name: Utiliser noble comme fallback pour les versions non supportées
+  set_fact:
+    docker_codename: "noble"
+
+- name: Afficher le codename utilisé pour Docker
+  debug:
+    msg: "Codename Ubuntu: {{ ubuntu_codename.stdout }} -> Docker repo: {{ docker_codename }}"
+
+- name: Ajouter le repository Docker
+  apt_repository:
+    repo: "deb [arch={{ system_arch.stdout }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ docker_codename }} stable"
+    state: present
+    filename: docker
+
+- name: Mise à jour du cache APT après ajout du repo
+  apt:
+    update_cache: yes
+
+- name: Installation de Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+
+- name: Installation du module Python Docker
+  pip:
+    name:
+      - docker
+    state: present
+    break_system_packages: yes
+
+- name: Recharger systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Démarrage et activation de Docker
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Attendre que Docker soit prêt
+  command: docker info
+  register: docker_ready
+  retries: 10
+  delay: 3
+  until: docker_ready.rc == 0
+  changed_when: false
+
+- name: Ajout de l'utilisateur au groupe docker
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Vérification de l'installation Docker
+  command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Afficher la version Docker
+  debug:
+    msg: "Docker installé: {{ docker_version.stdout }}"

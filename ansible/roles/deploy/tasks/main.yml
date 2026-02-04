@@ -1,0 +1,79 @@
+---
+# Rôle Deploy - Déploiement de la stack GLPI
+
+- name: Créer le répertoire de déploiement
+  file:
+    path: "{{ docker_stack_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Créer le répertoire nginx
+  file:
+    path: "{{ docker_stack_path }}/nginx"
+    state: directory
+    mode: '0755'
+
+- name: Copier le fichier docker-stack.yml
+  template:
+    src: docker-stack.yml.j2
+    dest: "{{ docker_stack_path }}/docker-stack.yml"
+    mode: '0644'
+
+- name: Copier la configuration Nginx
+  template:
+    src: nginx.conf.j2
+    dest: "{{ docker_stack_path }}/nginx/default.conf"
+    mode: '0644'
+
+- name: Copier le fichier .env
+  template:
+    src: env.j2
+    dest: "{{ docker_stack_path }}/.env"
+    mode: '0600'
+
+- name: Lister toutes les stacks existantes
+  shell: docker stack ls --format '{{ '{{' }}.Name{{ '}}' }}'
+  register: all_stacks
+  changed_when: false
+
+- name: Afficher les stacks existantes
+  debug:
+    msg: "Stacks existantes: {{ all_stacks.stdout_lines }}"
+
+- name: Supprimer les anciennes stacks qui utilisent les mêmes ports
+  shell: docker stack rm {{ item }}
+  loop: "{{ all_stacks.stdout_lines }}"
+  when: all_stacks.stdout_lines | length > 0
+  ignore_errors: yes
+
+- name: Attendre la suppression complète des stacks
+  pause:
+    seconds: 20
+  when: all_stacks.stdout_lines | length > 0
+
+- name: Nettoyer les réseaux orphelins
+  shell: docker network prune -f
+  ignore_errors: yes
+
+- name: Déployer la stack Docker Swarm
+  shell: |
+    cd {{ docker_stack_path }}
+    docker stack deploy -c docker-stack.yml {{ project_name }}
+  environment:
+    MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+    MYSQL_DATABASE: "{{ mysql_database }}"
+    MYSQL_USER: "{{ mysql_user }}"
+    MYSQL_PASSWORD: "{{ mysql_password }}"
+
+- name: Attendre le démarrage des services
+  pause:
+    seconds: 30
+
+- name: Vérifier l'état des services
+  command: docker service ls
+  register: services_status
+  changed_when: false
+
+- name: Afficher l'état des services
+  debug:
+    msg: "{{ services_status.stdout_lines }}"

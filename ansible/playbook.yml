@@ -1,0 +1,48 @@
+---
+# Playbook principal - Déploiement GLPI Stack
+# Projet Final - Docker Swarm + Terraform + Ansible
+
+- name: Déploiement de l'infrastructure GLPI
+  hosts: docker_swarm
+  become: yes
+  gather_facts: yes
+
+  pre_tasks:
+    - name: Afficher les informations du système
+      debug:
+        msg: |
+          Hostname: {{ ansible_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          IP: {{ ansible_default_ipv4.address | default('N/A') }}
+
+    - name: Mise à jour du cache APT
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  roles:
+    - role: docker
+      tags: docker
+    - role: swarm
+      tags: swarm
+    - role: deploy
+      tags: deploy
+
+  post_tasks:
+    - name: Afficher les informations d'accès
+      debug:
+        msg: |
+          ========================================
+          Déploiement terminé avec succès !
+          ========================================
+          URL GLPI: http://{{ domain_name }}
+          URL HTTPS: https://{{ domain_name }}
+          
+          Base de données:
+          - Host: mariadb
+          - Database: {{ mysql_database }}
+          - User: {{ mysql_user }}
+          
+          Pour voir les services:
+          docker service ls
+          ========================================

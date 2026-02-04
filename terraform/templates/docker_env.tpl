@@ -1,0 +1,8 @@
+# Variables d'environnement Docker
+# Généré automatiquement par Terraform
+
+MYSQL_ROOT_PASSWORD=${mysql_root_password}
+MYSQL_DATABASE=${mysql_database}
+MYSQL_USER=${mysql_user}
+MYSQL_PASSWORD=${mysql_password}
+DOMAIN_NAME=${domain_name}

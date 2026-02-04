@@ -1,0 +1,18 @@
+---
+# Variables générées par Terraform
+project_name: "glpi-stack"
+domain_name: "glpi.local"
+
+# Configuration MariaDB
+mysql_root_password: "RootP@ssw0rd2024!"
+mysql_database: "glpi"
+mysql_user: "glpi"
+mysql_password: "GlpiP@ssw0rd2024!"
+
+# Configuration Docker Swarm
+swarm_manager_ip: "127.0.0.1"
+nginx_replicas: 3
+
+# Chemins
+project_path: "/home/{{ ansible_user }}/Bureau/projet_final"
+docker_stack_path: "/home/{{ ansible_user }}/Bureau/projet_final/docker"
